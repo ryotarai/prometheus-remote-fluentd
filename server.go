@@ -79,7 +79,7 @@ func (s *Server) writeTimeseries(tss []*prompb.TimeSeries) error {
 			}
 			sample.Labels = labels
 
-			t := time.Unix(0, ss.Timestamp*1000)
+			t := time.Unix(0, ss.Timestamp*1000000)
 			err := s.output.Post(t, sample)
 			if err != nil {
 				return err
