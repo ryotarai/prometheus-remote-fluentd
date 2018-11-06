@@ -58,7 +58,8 @@ func (s *Server) handleWrite(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) writeTimeseries(tss []*prompb.TimeSeries) error {
-	log.Printf("Receiving %d timeseries", len(tss))
+	timestamp := time.Now().UnixNano()
+	log.Printf("%d: Receiving %d timeseries", timestamp, len(tss))
 
 	for _, ts := range tss {
 		for _, ss := range ts.Samples {
@@ -86,6 +87,8 @@ func (s *Server) writeTimeseries(tss []*prompb.TimeSeries) error {
 			}
 		}
 	}
+
+	log.Printf("%d: Finished posting samples", timestamp)
 	return nil
 }
 
