@@ -4,6 +4,7 @@ import (
 	"flag"
 	"log"
 	"net/http"
+	_ "net/http/pprof"
 
 	"github.com/fluent/fluent-logger-golang/fluent"
 )
@@ -13,6 +14,7 @@ func main() {
 	fluentHost := flag.String("fluent-host", "", "Fluentd host")
 	fluentTag := flag.String("fluent-tag", "", "Fluentd tag")
 	listen := flag.String("listen", ":8080", "Address to listen on")
+	pprof := flag.String("pprof", "", "To enable pprof, pass address to listen such as 'localhost:6060'")
 	flag.Parse()
 
 	if *fluentHost == "" {
@@ -20,6 +22,13 @@ func main() {
 	}
 	if *fluentTag == "" {
 		log.Fatal("--fluent-tag option is required")
+	}
+
+	if *pprof != "" {
+		go func() {
+			log.Printf("Enabling pprof on %s", *pprof)
+			log.Println(http.ListenAndServe(*pprof, nil))
+		}()
 	}
 
 	f, err := fluent.New(fluent.Config{
