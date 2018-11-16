@@ -34,6 +34,7 @@ func main() {
 	f, err := fluent.New(fluent.Config{
 		FluentHost: *fluentHost,
 		FluentPort: *fluentPort,
+		AsyncConnect: true,
 	})
 	if err != nil {
 		log.Fatal(err)
