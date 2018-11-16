@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-fluentd
+data:
+  fluent.conf: |
+    <source>
+      @type forward
+    </source>
+
+    <match prometheus.*>
+      @type s3
+
+      s3_bucket your-prometheus
+      s3_region ap-northeast-1
+      path %Y/%m/%d/
+
+      <buffer tag,time>
+        @type file
+        flush_at_shutdown true
+        path /var/log/fluent/s3
+        timekey 1800
+        timekey_wait 10m
+        timekey_use_utc true # use utc
+        chunk_limit_size 256m
+      </buffer>
+    </match>
