@@ -1,10 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
-	"log"
 	"math"
 	"net/http"
+	"sync/atomic"
 	"time"
 
 	"github.com/golang/protobuf/proto"
@@ -25,14 +26,27 @@ type writer interface {
 
 type Server struct {
 	output writer
+
+	totalReceivedTimeseries uint64
+	totalSentTimeseries     uint64
+	totalWriteRequests      uint64
 }
 
 func NewServer(output writer) (*Server, error) {
 	s := &Server{
-		output: output,
+		output:                  output,
+		totalReceivedTimeseries: 0,
+		totalSentTimeseries:     0,
+		totalWriteRequests:      0,
 	}
 
 	return s, nil
+}
+
+func (s *Server) handleMetrics(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintf(w, "prometheus_remote_fluentd_total_received_timeseries{} %d\n", s.totalReceivedTimeseries)
+	fmt.Fprintf(w, "prometheus_remote_fluentd_total_sent_timeseries{} %d\n", s.totalSentTimeseries)
+	fmt.Fprintf(w, "prometheus_remote_fluentd_total_write_requests{} %d\n", s.totalWriteRequests)
 }
 
 func (s *Server) handleWrite(w http.ResponseWriter, r *http.Request) {
@@ -54,12 +68,12 @@ func (s *Server) handleWrite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	atomic.AddUint64(&s.totalWriteRequests, 1)
 	s.writeTimeseries(req.Timeseries)
 }
 
 func (s *Server) writeTimeseries(tss []*prompb.TimeSeries) error {
-	timestamp := time.Now().UnixNano()
-	log.Printf("%d: Receiving %d timeseries", timestamp, len(tss))
+	atomic.AddUint64(&s.totalReceivedTimeseries, uint64(len(tss)))
 
 	for _, ts := range tss {
 		for _, ss := range ts.Samples {
@@ -88,13 +102,15 @@ func (s *Server) writeTimeseries(tss []*prompb.TimeSeries) error {
 		}
 	}
 
-	log.Printf("%d: Finished posting samples", timestamp)
+	atomic.AddUint64(&s.totalSentTimeseries, uint64(len(tss)))
 	return nil
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path == "/write" {
 		s.handleWrite(w, r)
+	} else if r.URL.Path == "/metrics" {
+		s.handleMetrics(w, r)
 	} else {
 		http.NotFound(w, r)
 	}
